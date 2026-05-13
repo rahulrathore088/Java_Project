@@ -1,0 +1,49 @@
+name: Trigger AWS CodeBuild
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  trigger-codebuild:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2     
+
+      - name: Trigger CodeBuild
+        id: build
+        run: |
+          BUILD_ID=$(aws codebuild start-build \
+            --project-name calculator-job \
+            --query 'build.id' \
+            --output text)
+          echo "Build ID: $BUILD_ID"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for CodeBuild result
+        run: |
+          BUILD_ID="${{ steps.build.outputs.build_id }}"
+          while true; do
+            STATUS=$(aws codebuild batch-get-builds \
+              --ids $BUILD_ID \
+              --query 'builds[0].buildStatus' \
+              --output text)
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "✅ Build succeeded!"
+              exit 0
+            fi
+            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "STOPPED" ]; then
+              echo "❌ Build failed!"
+              exit 1
+            fi
+            sleep 15
+          done
