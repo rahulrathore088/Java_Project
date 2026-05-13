@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17       # equivalent to JDK 17 temurin
+
+  build:
+    commands:
+      - cd calculator        # equivalent to working-directory: calculator
+      - mvn -B package       # same as your Maven build step
+
+artifacts:
+  files:
+    - calculator/target/*.jar  # upload the built JAR as artifact
+  discard-paths: no
+
+cache:
+  paths:
+    - /root/.m2/**/*         # equivalent to cache: maven in setup-java
